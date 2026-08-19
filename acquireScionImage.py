@@ -80,10 +80,10 @@ def get_acquisition_time(experiment, dataset):
     return datetime.now()
 
 
-def build_fits_header(experiment, exposure_time, acquisition_time, obs_type="UNKNOWN"):
+def build_fits_header(experiment, exposure_time_ms, acquisition_time, obs_type="UNKNOWN"):
     header = fits.Header()
 
-    header["EXPTIME"] = (exposure_time, "Exposure time (ms)")
+    header["EXPTIME"] = (exposure_time_ms, "Exposure time (ms)")
     header["DATE-OBS"] = (acquisition_time.isoformat(), "Acquisition date/time")
 
     for device in experiment.ExperimentDevices:
@@ -113,7 +113,7 @@ def create_experiment():
     return application.Experiment, application.FileManager
 
 
-def acquire_single_image(exposure_time, experiment, file_manager, save_directory, obs_type="UNKNOWN"):
+def acquire_single_image(exposure_time_ms, experiment, file_manager, save_directory, obs_type="UNKNOWN"):
     if not device_found(experiment):
         raise RuntimeError("Camera not found. Please add a camera and try again.")
 
@@ -123,8 +123,8 @@ def acquire_single_image(exposure_time, experiment, file_manager, save_directory
     if experiment.Exists(CameraSettings.ShutterTimingExposureTime):
         experiment.SetValue(
             CameraSettings.ShutterTimingExposureTime,
-            float(exposure_time))
-        print("Exposure time set to %s ms" % exposure_time)
+            float(exposure_time_ms))
+        print("Exposure time set to %s ms" % exposure_time_ms)
 
     # Only acquire a single frame
     # experiment.SetValue(ExperimentSettings.AcquisitionFramesToStore, Int32(1))
@@ -144,8 +144,14 @@ def acquire_single_image(exposure_time, experiment, file_manager, save_directory
     except Exception as e:
         print("Error during acquisition: %s" % str(e))
         # Wait for acquisition to complete
+    
+    print("Waiting {exposure_time_ms/1000.0} + 5 seconds for acquisition to complete...")
+    sleep(exposure_time_ms / 1000.0 + 5)
+    return save_last_image_fits(experiment, file_manager, exposure_time_ms, save_directory, obs_type)
+
+
+def save_last_image_fits(experiment, file_manager, exposure_time_ms, save_directory, obs_type="UNKNOWN"):
     # Find the .spe file LightField just saved
-    sleep(5)  # Wait a moment for the file to be written
     directory = experiment.GetValue(ExperimentSettings.FileNameGenerationDirectory)
     files = glob.glob(os.path.join(directory, "*.spe"))
     last_image_acquired = max(files, key=os.path.getctime)
@@ -168,7 +174,7 @@ def acquire_single_image(exposure_time, experiment, file_manager, save_directory
     image_array = image_array.reshape(512, 640)
     print("Image converted to numpy array with shape %s" % (image_array.shape,))
 
-    header = build_fits_header(experiment, exposure_time, acquisition_time, obs_type)
+    header = build_fits_header(experiment, exposure_time_ms, acquisition_time, obs_type)
 
     # Write the acquired image to disk as a fits file, using the same
     # acquisition_time for both the DATE-OBS header and the filename
@@ -183,7 +189,7 @@ def acquire_single_image(exposure_time, experiment, file_manager, save_directory
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Acquire a single image from the Scion camera.")
-    parser.add_argument("exposure_time", type=float, help="Exposure time in milliseconds")
+    parser.add_argument("exposure_time_ms", type=float, help="Exposure time in milliseconds")
     parser.add_argument("save_directory", help="Directory to save the acquired image as a fits file")
     parser.add_argument("--obs_type", default="UNKNOWN", help="Observation type for FITS header (default: UNKNOWN)")
     args = parser.parse_args()
@@ -191,7 +197,7 @@ if __name__ == "__main__":
     experiment, file_manager = create_experiment()
     print("Created experiment object.")
 
-    image_array = acquire_single_image(args.exposure_time, experiment, file_manager, args.save_directory, args.obs_type)
+    image_array = acquire_single_image(args.exposure_time_ms, experiment, file_manager, args.save_directory, args.obs_type)
 
     print("Acquired image with %d pixels" % image_array.size)
 
