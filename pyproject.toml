@@ -1,0 +1,18 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "scion-scripts"
+version = "0.1.0"
+description = "Scripts for controlling a Princeton Instruments LightField / Scion camera and acquiring images"
+requires-python = ">=3.8"
+dependencies = [
+    "numpy",
+    "astropy",
+    "pythonnet",
+]
+
+[tool.setuptools]
+py-modules = ["acquireScionImage"]
+packages = ["scioncontrol"]
