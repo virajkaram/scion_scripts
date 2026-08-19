@@ -20,6 +20,9 @@ import numpy as np
 from astropy.io import fits
 from datetime import datetime
 
+# for the acquisition-wait progress bar (pip install tqdm)
+from tqdm import tqdm
+
 # Import c compatible List and String
 from System import String, Int32
 from System.Collections.Generic import List
@@ -43,6 +46,12 @@ from PrincetonInstruments.LightField.AddIns import TimeStamps
 # Reuse the buffer-to-numpy conversion from the scioncontrol samples
 from scioncontrol.synchronous_acquisition import convert_buffer
 from time import sleep
+
+def sleep_with_progress(total_seconds, description="Waiting"):
+    step = 0.1
+    for _ in tqdm(range(int(total_seconds / step)), desc=description, unit="step"):
+        sleep(step)
+
 
 def device_found(experiment):
     # Find connected camera device
@@ -145,8 +154,7 @@ def acquire_single_image(exposure_time_ms, experiment, file_manager, save_direct
         print("Error during acquisition: %s" % str(e))
         # Wait for acquisition to complete
     
-    print("Waiting {exposure_time_ms/1000.0} + 5 seconds for acquisition to complete...")
-    sleep(exposure_time_ms / 1000.0 + 5)
+    sleep_with_progress(exposure_time_ms / 1000.0 + 5, "Waiting for acquisition to complete")
     return save_last_image_fits(experiment, file_manager, exposure_time_ms, save_directory, obs_type)
 
 
